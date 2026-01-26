@@ -18,9 +18,7 @@ public class ProductDialog extends JDialog {
     private JComboBox<CategoryDTO> cboCategory;
     private JButton btnSave, btnCancel;
     private boolean isSaved = false;
-
     private ProductDTO productToEdit = null;
-
     private final ProductService productService = new ProductServiceImpl();
     private final CategoryService categoryService = new CategoryServiceImpl();
 

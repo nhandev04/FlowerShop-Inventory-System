@@ -18,7 +18,6 @@ public class SalesServiceImpl implements SalesService {
         if (quantity <= 0) return "Số lượng phải lớn hơn 0!";
         if (customerName.isEmpty()) return "Vui lòng nhập tên khách hàng!";
 
-        // 2. Gọi DAO xử lý Transaction
         boolean success = orderDAO.createOrder(productId, quantity, customerName, price);
 
         if (success) {

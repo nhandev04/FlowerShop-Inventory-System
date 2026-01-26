@@ -37,7 +37,7 @@ public class RevenuePanel extends JPanel implements ShopObserver {
     private void initComponents() {
         setLayout(new BorderLayout(10, 10));
         setBorder(new EmptyBorder(20, 20, 20, 20));
-        setBackground(new Color(245, 245, 245)); // Màu nền xám nhẹ hiện đại
+        setBackground(new Color(245, 245, 245));
 
         JLabel lblTitle = new JLabel("TỔNG QUAN KINH DOANH (DASHBOARD)");
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 24));
@@ -47,7 +47,7 @@ public class RevenuePanel extends JPanel implements ShopObserver {
         JPanel centerPanel = new JPanel(new BorderLayout(0, 20));
         centerPanel.setOpaque(false);
 
-        cardsPanel = new JPanel(new GridLayout(1, 3, 20, 0)); // 1 hàng, 3 cột, cách nhau 20px
+        cardsPanel = new JPanel(new GridLayout(1, 3, 20, 0));
         cardsPanel.setOpaque(false);
 
         lblTotalRevenue = createCard(cardsPanel, "TỔNG DOANH THU", new Color(0, 153, 76));
@@ -56,7 +56,7 @@ public class RevenuePanel extends JPanel implements ShopObserver {
 
         centerPanel.add(cardsPanel, BorderLayout.NORTH);
 
-        chartsPanel = new JPanel(new GridLayout(1, 2, 20, 0)); // 1 hàng, 2 biểu đồ
+        chartsPanel = new JPanel(new GridLayout(1, 2, 20, 0));
         chartsPanel.setOpaque(false);
         centerPanel.add(chartsPanel, BorderLayout.CENTER);
 
@@ -70,7 +70,7 @@ public class RevenuePanel extends JPanel implements ShopObserver {
     private JLabel createCard(JPanel parent, String title, Color color) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createMatteBorder(0, 0, 4, 0, color)); // Viền màu dưới đáy
+        card.setBorder(BorderFactory.createMatteBorder(0, 0, 4, 0, color));
 
         JLabel lblTitle = new JLabel(title);
         lblTitle.setFont(new Font("Segoe UI", Font.PLAIN, 14));

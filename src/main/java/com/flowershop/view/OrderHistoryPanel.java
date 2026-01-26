@@ -3,7 +3,6 @@ package com.flowershop.view;
 import com.flowershop.config.DatabaseConnection;
 import com.flowershop.view.observer.ShopEventManager;
 import com.flowershop.view.observer.ShopObserver;
-
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;

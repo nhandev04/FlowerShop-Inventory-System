@@ -56,7 +56,7 @@ Dự án áp dụng triệt để các mẫu thiết kế để đảm bảo cod
 
 1.  **Clone dự án:**
     ```bash
-    git clone [https://github.com/username-cua-ban/FlowerShopInventory.git](https://github.com/username-cua-ban/FlowerShopInventory.git)
+    git clone https://github.com/Hoale66P1/FlowerShop-Inventory-System
     ```
 2.  **Cấu hình Database:**
     - Mở SQL Server Management Studio.

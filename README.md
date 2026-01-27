@@ -67,6 +67,7 @@ Dự án áp dụng triệt để các mẫu thiết kế để đảm bảo cod
     - Mở dự án bằng IntelliJ IDEA / Eclipse.
     - Run file `Main.java`.
     - Tài khoản Admin: `admin` / `123`.
+    - Tài khoản Nhân viên: `staff` / `123`.
 
 ---
 Code with ❤️ by **Hoa Le**

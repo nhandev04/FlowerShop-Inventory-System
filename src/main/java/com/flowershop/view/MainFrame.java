@@ -14,7 +14,7 @@ public class MainFrame extends JFrame {
     }
 
     private void initComponents() {
-        setTitle("Hệ thống Quản lý Kho Shop Hoa - " + (userRole.equals("ADMIN") ? "Quản Trị Viên" : "Nhân Viên"));
+        setTitle("Hệ thống Quản lý Kho Hàng Shop Hoa - " + (userRole.equals("ADMIN") ? "Quản Trị Viên" : "Nhân Viên"));
         setSize(1200, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);

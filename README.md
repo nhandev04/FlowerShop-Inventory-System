@@ -1,4 +1,4 @@
-# Hệ thống Quản lý Kho Shop Hoa (Flower Shop Inventory System)
+# Hệ thống Quản lý Kho Hàng Shop Hoa (Flower Shop Inventory System)
 
 > **Đồ án cuối kỳ môn Lập trình Java**
 > **Tác giả:** Hoa Le

@@ -70,4 +70,4 @@ Dự án áp dụng triệt để các mẫu thiết kế để đảm bảo cod
     - Tài khoản Nhân viên: `staff` / `123`.
 
 ---
-Code with ❤️ by **Hoa Le**
+Code with <3 by **Hoa Le**

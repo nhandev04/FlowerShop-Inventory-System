@@ -82,6 +82,12 @@ public class MainFrame extends JFrame {
         menuBar.add(menuReport);
         setJMenuBar(menuBar);
 
+        JMenuItem itemCustomerChart = new JMenuItem("Phân Loại Khách Hàng");
+        itemCustomerChart.addActionListener(e -> showPanel(new com.flowershop.view.CustomerChartPanel()));
+        menuReport.add(itemCustomerChart);
+
+        menuReport.addSeparator();
+
         JPanel mainPanel = new JPanel(new BorderLayout());
         JLabel welcomeLabel = new JLabel("XIN CHÀO " + userRole + "!", SwingConstants.CENTER);
         welcomeLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));

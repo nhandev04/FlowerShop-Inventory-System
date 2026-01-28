@@ -14,7 +14,7 @@ public class MainFrame extends JFrame {
     }
 
     private void initComponents() {
-        setTitle("Hệ thống Quản lý Kho Hàng Shop Hoa - " + (userRole.equals("ADMIN") ? "Quản Trị Viên" : "Nhân Viên"));
+        setTitle("Hệ thống Quản lý Kho Hàng Shop Hoa - Đăng nhập bằng tài khoản " + (userRole.equals("ADMIN") ? "Quản Trị Viên" : "Nhân Viên"));
         setSize(1200, 750);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -94,6 +94,28 @@ public class MainFrame extends JFrame {
         welcomeLabel.setForeground(new Color(100, 100, 100));
         mainPanel.add(welcomeLabel, BorderLayout.CENTER);
         add(mainPanel, BorderLayout.CENTER);
+
+        JMenu menuClock = new JMenu();
+        menuClock.setEnabled(false);
+        menuClock.setForeground(new java.awt.Color(0, 102, 204));
+        menuBar.add(javax.swing.Box.createHorizontalGlue());
+        menuBar.add(menuClock);
+
+        Thread clockThread = new Thread(() -> {
+            try {
+                while (true) {
+                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+                    String time = sdf.format(new java.util.Date());
+
+                    javax.swing.SwingUtilities.invokeLater(() -> menuClock.setText(time));
+
+                    Thread.sleep(1000);
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
+        clockThread.start();
     }
 
     private void showPanel(JPanel panel) {

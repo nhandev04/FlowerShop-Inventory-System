@@ -19,33 +19,28 @@ public class CustomerChartPanel extends JPanel {
         reportDAO = new ReportDAO();
         setLayout(new BorderLayout());
 
-        // Tạo Dataset từ Database
         DefaultPieDataset dataset = createDataset();
 
-        // Tạo Biểu đồ JFreeChart (Biểu đồ Tròn 3D)
         JFreeChart chart = ChartFactory.createPieChart3D(
-                "PHÂN LOẠI KHÁCH HÀNG THEO DOANH SỐ", // Tiêu đề
+                "PHÂN LOẠI KHÁCH HÀNG THEO DOANH SỐ",
                 dataset,
-                true,  // Có chú thích (Legend)
-                true,  // Có Tooltips
-                false  // Không URLs
+                true,
+                true,
+                false
         );
 
-        // Tùy chỉnh giao diện biểu đồ cho đẹp
         PiePlot3D plot = (PiePlot3D) chart.getPlot();
         plot.setStartAngle(290);
         plot.setDirection(Rotation.CLOCKWISE);
-        plot.setForegroundAlpha(0.8f); // Độ trong suốt
-        plot.setSectionPaint("Khách VIP (>10tr)", new Color(255, 215, 0)); // Màu Vàng Gold
-        plot.setSectionPaint("Khách Thân Thiết (>2tr)", new Color(0, 191, 255)); // Màu Xanh
-        plot.setSectionPaint("Khách Vãng Lai / Mới", new Color(192, 192, 192)); // Màu Bạc
+        plot.setForegroundAlpha(0.8f);
+        plot.setSectionPaint("Khách VIP (>10tr)", new Color(255, 215, 0));
+        plot.setSectionPaint("Khách Thân Thiết (>2tr)", new Color(0, 191, 255));
+        plot.setSectionPaint("Khách Vãng Lai / Mới", new Color(192, 192, 192));
 
-        // Đưa biểu đồ vào Panel
         ChartPanel chartPanel = new ChartPanel(chart);
         chartPanel.setPreferredSize(new java.awt.Dimension(800, 500));
         add(chartPanel, BorderLayout.CENTER);
 
-        // Nút làm mới
         JButton btnRefresh = new JButton("Cập nhật số liệu");
         btnRefresh.addActionListener(e -> {
             DefaultPieDataset newDataset = createDataset();
@@ -58,9 +53,7 @@ public class CustomerChartPanel extends JPanel {
         DefaultPieDataset dataset = new DefaultPieDataset();
         Map<String, Integer> data = reportDAO.getCustomerSegmentation();
 
-        // Đổ dữ liệu vào dataset của JFreeChart
         for (Map.Entry<String, Integer> entry : data.entrySet()) {
-            // Hiển thị tên + số lượng
             dataset.setValue(entry.getKey() + " (" + entry.getValue() + ")", entry.getValue());
         }
         return dataset;

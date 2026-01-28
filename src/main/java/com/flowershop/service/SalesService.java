@@ -1,5 +1,9 @@
 package com.flowershop.service;
 
+import com.flowershop.model.dto.SalesOrderDTO;
+import com.flowershop.model.dto.SalesOrderDetailDTO;
+import java.util.List;
+
 public interface SalesService {
-    String sellProduct(int productId, int quantity, String customerName, double price);
+    boolean createSalesOrder(SalesOrderDTO order, List<SalesOrderDetailDTO> details);
 }

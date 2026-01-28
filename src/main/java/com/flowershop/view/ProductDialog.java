@@ -119,33 +119,35 @@ public class ProductDialog extends JDialog {
             BigDecimal price = new BigDecimal(priceStr);
             int reorder = Integer.parseInt(txtReorder.getText().trim());
 
-            ProductDTO dto = ProductDTO.builder()
-                    .productName(name)
-                    .categoryId(selectedCat.getCategoryId())
-                    .sku(sku)
-                    .price(price)
-                    .reorderLevel(reorder)
-                    .isActive(true)
-                    .build();
+            ProductDTO dto = new ProductDTO();
+
+            if (productToEdit != null) {
+                dto.setProductId(productToEdit.getProductId());
+            }
+
+            dto.setProductName(name);
+            dto.setCategoryId(selectedCat.getCategoryId());
+            dto.setSku(sku);
+            dto.setPrice(price);
+            dto.setReorderLevel(reorder);
+            dto.setIsActive(true);
 
             boolean success;
             if (productToEdit == null) {
-                success = productService.createProduct(dto);
+                success = productService.addProduct(dto);
             } else {
-                dto.setProductId(productToEdit.getProductId());
                 success = productService.updateProduct(dto);
             }
 
             if (success) {
-                JOptionPane.showMessageDialog(this, "Lưu dữ liệu thành công!");
-                isSaved = true;
+                this.isSaved = true;
+                JOptionPane.showMessageDialog(this, "Lưu thành công!");
                 dispose();
             } else {
-                JOptionPane.showMessageDialog(this, "Thao tác thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Lưu thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
-
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Giá tiền hoặc số lượng phải là số!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập số hợp lệ!", "Lỗi nhập liệu", JOptionPane.ERROR_MESSAGE);
         }
     }
 

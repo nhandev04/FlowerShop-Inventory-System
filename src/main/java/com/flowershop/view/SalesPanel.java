@@ -1,22 +1,26 @@
 package com.flowershop.view;
 
 import com.flowershop.model.dto.ProductDTO;
+import com.flowershop.model.dto.SalesOrderDTO;
+import com.flowershop.model.dto.SalesOrderDetailDTO;
 import com.flowershop.service.ProductService;
 import com.flowershop.service.SalesService;
 import com.flowershop.service.impl.ProductServiceImpl;
 import com.flowershop.service.impl.SalesServiceImpl;
-
+import com.flowershop.view.observer.ShopEventManager;
+import com.flowershop.view.observer.ShopObserver;
 import javax.swing.*;
 import java.awt.*;
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
 
-public class SalesPanel extends JPanel {
+public class SalesPanel extends JPanel implements ShopObserver {
 
     private JComboBox<ProductDTO> cboProduct;
     private JTextField txtQuantity;
     private JTextField txtCustomer;
-    private JLabel lblPricePreview;
     private JButton btnSubmit;
 
     private final ProductService productService;
@@ -27,6 +31,8 @@ public class SalesPanel extends JPanel {
         this.salesService = new SalesServiceImpl();
         initComponents();
         loadProducts();
+
+        ShopEventManager.getInstance().subscribe(this);
     }
 
     private void initComponents() {
@@ -55,7 +61,7 @@ public class SalesPanel extends JPanel {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (value instanceof ProductDTO) {
                     ProductDTO p = (ProductDTO) value;
-                    setText(p.getProductName() + " - " + new DecimalFormat("#,###").format(p.getPrice()) + " VND");
+                    setText(p.getProductName() + " | Tồn: " + p.getQuantityOnHand() + " | Giá: " + new DecimalFormat("#,###").format(p.getPrice()));
                 }
                 return this;
             }
@@ -91,6 +97,7 @@ public class SalesPanel extends JPanel {
     }
 
     private void loadProducts() {
+        cboProduct.removeAllItems();
         List<ProductDTO> products = productService.getAllProducts();
         for (ProductDTO p : products) {
             cboProduct.addItem(p);
@@ -100,33 +107,65 @@ public class SalesPanel extends JPanel {
     private void processSales() {
         ProductDTO selectedProduct = (ProductDTO) cboProduct.getSelectedItem();
         String qtyStr = txtQuantity.getText().trim();
-        String customer = txtCustomer.getText().trim();
+        String customerName = txtCustomer.getText().trim();
 
-        if (selectedProduct == null || qtyStr.isEmpty() || customer.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+        if (selectedProduct == null || qtyStr.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm và nhập số lượng!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         try {
             int quantity = Integer.parseInt(qtyStr);
 
-            String result = salesService.sellProduct(
-                    selectedProduct.getProductId(),
-                    quantity,
-                    customer,
-                    selectedProduct.getPrice().doubleValue()
-            );
+            if (quantity > selectedProduct.getQuantityOnHand()) {
+                JOptionPane.showMessageDialog(this, "Số lượng tồn kho không đủ! (Còn: " + selectedProduct.getQuantityOnHand() + ")", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
-            if ("SUCCESS".equals(result)) {
-                JOptionPane.showMessageDialog(this, "Thanh toán thành công!\nĐã trừ kho và tạo hóa đơn.");
+            BigDecimal price = selectedProduct.getPrice();
+            BigDecimal totalAmount = price.multiply(BigDecimal.valueOf(quantity));
+
+            SalesOrderDTO order = new SalesOrderDTO();
+            order.setCustomerId(4);
+            order.setTotalAmount(totalAmount);
+            order.setNotes("Khách mua: " + customerName);
+
+            List<SalesOrderDetailDTO> details = new ArrayList<>();
+            SalesOrderDetailDTO detail = new SalesOrderDetailDTO();
+            detail.setProductId(selectedProduct.getProductId());
+            detail.setQuantity(quantity);
+            detail.setUnitPrice(price);
+
+            details.add(detail);
+
+            boolean success = salesService.createSalesOrder(order, details);
+
+            if (success) {
+                JOptionPane.showMessageDialog(this,
+                        "Thanh toán thành công!\n" +
+                                "Sản phẩm: " + selectedProduct.getProductName() + "\n" +
+                                "Số lượng: " + quantity + "\n" +
+                                "Tổng tiền: " + new DecimalFormat("#,###").format(totalAmount) + " VND"
+                );
                 txtQuantity.setText("");
                 txtCustomer.setText("Khách vãng lai");
+                loadProducts();
             } else {
-                JOptionPane.showMessageDialog(this, "Lỗi: " + result, "Thất bại", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Thanh toán thất bại! Vui lòng kiểm tra lại.", "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
 
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Số lượng phải là số nguyên!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Số lượng phải là số nguyên hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Lỗi hệ thống: " + ex.getMessage());
+        }
+    }
+
+    @Override
+    public void updateData(String eventType) {
+        if ("PRODUCT_CHANGED".equals(eventType)) {
+            loadProducts();
         }
     }
 }

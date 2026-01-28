@@ -17,8 +17,14 @@ public class ProductDAOImpl implements ProductDAO {
     @Override
     public List<ProductDTO> getAll() {
         List<ProductDTO> list = new ArrayList<>();
-        String sql = "SELECT p.*, c.CategoryName FROM Products p " +
+        String sql = "SELECT p.*, c.CategoryName, ISNULL(i.TotalStock, 0) AS Stock " +
+                "FROM Products p " +
                 "LEFT JOIN Categories c ON p.CategoryID = c.CategoryID " +
+                "LEFT JOIN (" +
+                "    SELECT ProductID, SUM(QuantityOnHand) as TotalStock " +
+                "    FROM Inventory " +
+                "    GROUP BY ProductID" +
+                ") i ON p.ProductID = i.ProductID " +
                 "WHERE p.IsActive = 1";
 
         try (Connection conn = getConnection();
@@ -36,6 +42,7 @@ public class ProductDAOImpl implements ProductDAO {
                 p.setIsActive(rs.getBoolean("IsActive"));
                 p.setCreatedAt(rs.getTimestamp("CreatedAt"));
                 p.setCategoryName(rs.getString("CategoryName"));
+                p.setQuantityOnHand(rs.getInt("Stock"));
 
                 list.add(p);
             }
@@ -47,22 +54,36 @@ public class ProductDAOImpl implements ProductDAO {
 
     @Override
     public ProductDTO getById(int id) {
-        String sql = "SELECT * FROM Products WHERE ProductID = ? AND IsActive = 1";
+        String sql = "SELECT p.*, ISNULL(i.TotalStock, 0) as Stock " +
+                "FROM Products p " +
+                "LEFT JOIN (" +
+                "    SELECT ProductID, SUM(QuantityOnHand) as TotalStock " +
+                "    FROM Inventory " +
+                "    GROUP BY ProductID" +
+                ") i ON p.ProductID = i.ProductID " +
+                "WHERE p.ProductID = ? AND p.IsActive = 1";
+
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return ProductDTO.builder()
-                            .productId(rs.getInt("ProductID"))
-                            .productName(rs.getString("ProductName"))
-                            .categoryId(rs.getInt("CategoryID"))
-                            .sku(rs.getString("SKU"))
-                            .price(rs.getBigDecimal("UnitPrice"))
-                            .reorderLevel(rs.getInt("ReorderLevel"))
-                            .isActive(rs.getBoolean("IsActive"))
-                            .build();
+                    ProductDTO p = new ProductDTO();
+
+                    p.setProductId(rs.getInt("ProductID"));
+                    p.setProductName(rs.getString("ProductName"));
+                    p.setCategoryId(rs.getInt("CategoryID"));
+                    p.setSku(rs.getString("SKU"));
+
+                    p.setPrice(rs.getBigDecimal("UnitPrice"));
+
+                    p.setReorderLevel(rs.getInt("ReorderLevel"));
+                    p.setIsActive(rs.getBoolean("IsActive"));
+
+                    p.setQuantityOnHand(rs.getInt("Stock"));
+
+                    return p;
                 }
             }
         } catch (SQLException e) {
@@ -73,21 +94,55 @@ public class ProductDAOImpl implements ProductDAO {
 
     @Override
     public boolean add(ProductDTO p) {
-        String sql = "INSERT INTO Products (ProductName, CategoryID, SKU, UnitPrice, ReorderLevel, IsActive) VALUES (?, ?, ?, ?, ?, 1)";
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        Connection conn = null;
+        PreparedStatement psProduct = null;
+        PreparedStatement psInventory = null;
+        ResultSet rs = null;
 
-            ps.setString(1, p.getProductName());
-            ps.setInt(2, p.getCategoryId());
-            ps.setString(3, p.getSku());
-            ps.setBigDecimal(4, p.getPrice());
-            ps.setInt(5, p.getReorderLevel());
+        try {
+            conn = getConnection();
+            conn.setAutoCommit(false);
+            String sqlProduct = "INSERT INTO Products (ProductName, CategoryID, SKU, UnitPrice, ReorderLevel, IsActive) VALUES (?, ?, ?, ?, ?, 1)";
+            psProduct = conn.prepareStatement(sqlProduct, Statement.RETURN_GENERATED_KEYS);
 
-            return ps.executeUpdate() > 0;
+            psProduct.setString(1, p.getProductName());
+            psProduct.setInt(2, p.getCategoryId());
+            psProduct.setString(3, p.getSku());
+            psProduct.setBigDecimal(4, p.getPrice());
+            psProduct.setInt(5, p.getReorderLevel());
+
+            int rowsAffected = psProduct.executeUpdate();
+
+            if (rowsAffected > 0) {
+                rs = psProduct.getGeneratedKeys();
+                if (rs.next()) {
+                    int newProductId = rs.getInt(1);
+                    String sqlInventory = "INSERT INTO Inventory (ProductID, WarehouseID, QuantityOnHand, LastUpdated) VALUES (?, 1, 0, GETDATE())";
+                    psInventory = conn.prepareStatement(sqlInventory);
+                    psInventory.setInt(1, newProductId);
+                    psInventory.executeUpdate();
+                }
+            }
+
+            conn.commit();
+            return true;
+
         } catch (SQLException e) {
-            System.err.println("Lỗi database khi thêm sản phẩm: " + e.getMessage());
             e.printStackTrace();
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException ex) { ex.printStackTrace(); }
             return false;
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (psProduct != null) psProduct.close();
+                if (psInventory != null) psInventory.close();
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (SQLException e) { e.printStackTrace(); }
         }
     }
 

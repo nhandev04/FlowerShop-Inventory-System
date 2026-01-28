@@ -12,7 +12,6 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.renderer.category.LineAndShapeRenderer;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -39,7 +38,7 @@ public class RevenuePanel extends JPanel implements ShopObserver {
         setBorder(new EmptyBorder(20, 20, 20, 20));
         setBackground(new Color(245, 245, 245));
 
-        JLabel lblTitle = new JLabel("TỔNG QUAN KINH DOANH (DASHBOARD)");
+        JLabel lblTitle = new JLabel("TỔNG QUAN KINH DOANH");
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 24));
         lblTitle.setForeground(new Color(50, 50, 50));
         add(lblTitle, BorderLayout.NORTH);

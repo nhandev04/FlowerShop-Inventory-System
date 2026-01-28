@@ -4,7 +4,8 @@ import com.flowershop.dao.ProductDAO;
 import com.flowershop.dao.impl.ProductDAOImpl;
 import com.flowershop.model.dto.ProductDTO;
 import com.flowershop.service.ProductService;
-import java.math.BigDecimal;
+import com.flowershop.view.observer.ShopEventManager;
+
 import java.util.List;
 
 public class ProductServiceImpl implements ProductService {
@@ -21,32 +22,29 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductDTO getProductById(int id) {
-        return productDAO.getById(id);
+    public boolean addProduct(ProductDTO p) {
+        boolean success = productDAO.add(p);
+        if (success) {
+            ShopEventManager.getInstance().notify("PRODUCT_CHANGED");
+        }
+        return success;
     }
 
     @Override
-    public boolean createProduct(ProductDTO product) {
-        if (product == null) return false;
-        if (product.getProductName() == null || product.getProductName().trim().isEmpty()) {
-            System.err.println("Lỗi: Tên sản phẩm không được để trống!");
-            return false;
+    public boolean updateProduct(ProductDTO p) {
+        boolean success = productDAO.update(p);
+        if (success) {
+            ShopEventManager.getInstance().notify("PRODUCT_CHANGED");
         }
-        if (product.getPrice() == null || product.getPrice().compareTo(BigDecimal.ZERO) < 0) {
-            System.err.println("Lỗi: Giá bán phải là số dương!");
-            return false;
-        }
-        return productDAO.add(product);
-    }
-
-    @Override
-    public boolean updateProduct(ProductDTO product) {
-        if (product == null || product.getProductId() == null) return false;
-        return productDAO.update(product);
+        return success;
     }
 
     @Override
     public boolean deleteProduct(int id) {
-        return productDAO.delete(id);
+        boolean success = productDAO.delete(id);
+        if (success) {
+            ShopEventManager.getInstance().notify("PRODUCT_CHANGED");
+        }
+        return success;
     }
 }

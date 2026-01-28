@@ -30,7 +30,6 @@ public class MainFrame extends JFrame {
             this.dispose();
             openLogin();
         });
-
         itemExit.addActionListener(e -> System.exit(0));
 
         menuSystem.add(itemLogout);
@@ -38,11 +37,15 @@ public class MainFrame extends JFrame {
         menuSystem.add(itemExit);
 
         JMenu menuManage = new JMenu("Quản lý");
-        JMenuItem itemProduct = new JMenuItem("Sản phẩm & Kho");
-
         if (userRole.equals("ADMIN")) {
+            JMenuItem itemProduct = new JMenuItem("Sản phẩm & Kho");
             itemProduct.addActionListener(e -> showPanel(new ProductPanel()));
+
+            JMenuItem itemImport = new JMenuItem("Nhập Hàng");
+            itemImport.addActionListener(e -> showPanel(new ImportPanel()));
+
             menuManage.add(itemProduct);
+            menuManage.add(itemImport);
         } else {
             menuManage.setEnabled(false);
         }
@@ -57,32 +60,32 @@ public class MainFrame extends JFrame {
         menuSales.add(itemCreateOrder);
         menuSales.add(itemOrderHistory);
 
-        JMenu menuReport = new JMenu("Báo cáo");
-
+        JMenu menuReport = new JMenu("Báo Cáo");
         if (userRole.equals("ADMIN")) {
             JMenuItem itemRevenue = new JMenuItem("Báo cáo Doanh thu");
-            JMenuItem itemChart = new JMenuItem("Biểu đồ Tồn kho");
-
-            itemRevenue.addActionListener(e -> showPanel(new RevenuePanel()));
-            itemChart.addActionListener(e -> showPanel(new StatsPanel()));
-
+            itemRevenue.addActionListener(e -> showPanel(new com.flowershop.view.RevenuePanel()));
             menuReport.add(itemRevenue);
+            JMenuItem itemInventoryChart = new JMenuItem("Thống Kê Tồn Kho");
+            itemInventoryChart.addActionListener(e -> showPanel(new com.flowershop.view.InventoryChartPanel()));
+            menuReport.add(itemInventoryChart);
             menuReport.addSeparator();
-            menuReport.add(itemChart);
+            JMenuItem itemHistory = new JMenuItem("Lịch Sử Kho");
+            itemHistory.addActionListener(e -> showPanel(new com.flowershop.view.StockMovementPanel()));
+            menuReport.add(itemHistory);
         } else {
             menuReport.setEnabled(false);
         }
-
+        menuBar.add(menuReport);
         menuBar.add(menuSystem);
         menuBar.add(menuManage);
         menuBar.add(menuSales);
         menuBar.add(menuReport);
-
         setJMenuBar(menuBar);
 
         JPanel mainPanel = new JPanel(new BorderLayout());
-        JLabel welcomeLabel = new JLabel("XIN CHÀO " + userRole, SwingConstants.CENTER);
+        JLabel welcomeLabel = new JLabel("XIN CHÀO " + userRole + "!", SwingConstants.CENTER);
         welcomeLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        welcomeLabel.setForeground(new Color(100, 100, 100));
         mainPanel.add(welcomeLabel, BorderLayout.CENTER);
         add(mainPanel, BorderLayout.CENTER);
     }

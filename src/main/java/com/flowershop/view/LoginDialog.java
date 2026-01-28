@@ -1,5 +1,8 @@
 package com.flowershop.view;
 
+import com.flowershop.model.dto.UserDTO;
+import com.flowershop.service.UserService;
+import com.flowershop.service.impl.UserServiceImpl;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -10,9 +13,12 @@ public class LoginDialog extends JDialog {
     private JTextField txtUser;
     private JPasswordField txtPass;
     private boolean isAuthenticated = false;
+    private final UserService userService;
 
     public LoginDialog(Frame parent) {
         super(parent, "Đăng nhập Hệ thống", true);
+        this.userService = new UserServiceImpl();
+
         setSize(350, 220);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
@@ -38,7 +44,7 @@ public class LoginDialog extends JDialog {
 
         this.getRootPane().setDefaultButton(btnLogin);
 
-        btnLogin.addActionListener(e -> checkLogin());
+        btnLogin.addActionListener(e -> processLogin());
 
         JPanel pnlButton = new JPanel();
         pnlButton.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
@@ -52,17 +58,21 @@ public class LoginDialog extends JDialog {
         });
     }
 
-    private void checkLogin() {
-        String user = txtUser.getText();
-        String pass = new String(txtPass.getPassword());
+    private void processLogin() {
+        String user = txtUser.getText().trim();
+        String pass = new String(txtPass.getPassword()).trim();
 
-        if (user.equals("admin") && pass.equals("123")) {
-            userRole = "ADMIN";
-            isAuthenticated = true;
-            dispose();
-        } else if (user.equals("staff") && pass.equals("123")) {
-            userRole = "EMPLOYEE";
-            isAuthenticated = true;
+        if (user.isEmpty() || pass.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin!", "Thông báo", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        UserDTO loginUser = userService.login(user, pass);
+
+        if (loginUser != null) {
+            this.userRole = loginUser.getRole();
+            this.isAuthenticated = true;
+            JOptionPane.showMessageDialog(this, "Xin chào: " + loginUser.getFullName());
             dispose();
         } else {
             JOptionPane.showMessageDialog(this, "Sai tài khoản hoặc mật khẩu!", "Lỗi Đăng Nhập", JOptionPane.ERROR_MESSAGE);

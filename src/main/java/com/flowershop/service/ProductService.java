@@ -5,8 +5,7 @@ import java.util.List;
 
 public interface ProductService {
     List<ProductDTO> getAllProducts();
-    ProductDTO getProductById(int id);
-    boolean createProduct(ProductDTO product);
-    boolean updateProduct(ProductDTO product);
+    boolean addProduct(ProductDTO p);
+    boolean updateProduct(ProductDTO p);
     boolean deleteProduct(int id);
 }

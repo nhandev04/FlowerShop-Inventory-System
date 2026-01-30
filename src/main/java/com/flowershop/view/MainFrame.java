@@ -60,7 +60,7 @@ public class MainFrame extends JFrame {
 
         JMenu menuManage = new JMenu("Quản lý");
         styleMenu(menuManage);
-        if (userRole.equals("ADMIN")) {
+        if (userRole.equals("ADMIN") || userRole.equals("STAFF")) {
             JMenuItem itemProduct = new JMenuItem("Sản phẩm & Kho");
             itemProduct.addActionListener(e -> {
                 showPanel(new ProductPanel(), "Quản lý Sản phẩm & Kho", menuManage);
@@ -71,14 +71,20 @@ public class MainFrame extends JFrame {
                 showPanel(new ImportPanel(), "Nhập Hàng", menuManage);
             });
 
-            menuManage.add(itemProduct);
-            menuManage.add(itemImport);
-
             JMenuItem itemStockHistory = new JMenuItem("Lịch Sử Kho");
             itemStockHistory.addActionListener(e -> {
                 showPanel(new com.flowershop.view.StockMovementPanel(), "Lịch Sử Kho", menuManage);
             });
+
+            JMenuItem itemTransfer = new JMenuItem("Điều Chuyển Kho");
+            itemTransfer.addActionListener(e -> {
+                showPanel(new com.flowershop.view.WarehouseTransferPanel(), "Điều Chuyển Kho", menuManage);
+            });
+
+            menuManage.add(itemProduct);
+            menuManage.add(itemImport);
             menuManage.add(itemStockHistory);
+            menuManage.add(itemTransfer);
         } else {
             menuManage.setEnabled(false);
         }
@@ -155,7 +161,7 @@ public class MainFrame extends JFrame {
 
         JLabel subtitleLabel = new JLabel("SHOP HOA");
         subtitleLabel.setFont(new Font("Segoe UI", Font.BOLD, 38));
-        subtitleLabel.setForeground(new Color(255, 152, 0)); // Orange color
+        subtitleLabel.setForeground(new Color(255, 152, 0));
         subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JPanel linePanel = new JPanel();

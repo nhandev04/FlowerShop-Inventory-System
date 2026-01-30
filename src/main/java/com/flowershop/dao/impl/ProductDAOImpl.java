@@ -28,8 +28,8 @@ public class ProductDAOImpl implements ProductDAO {
                 "WHERE p.IsActive = 1";
 
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
                 ProductDTO p = new ProductDTO();
@@ -43,6 +43,8 @@ public class ProductDAOImpl implements ProductDAO {
                 p.setCreatedAt(rs.getTimestamp("CreatedAt"));
                 p.setCategoryName(rs.getString("CategoryName"));
                 p.setQuantityOnHand(rs.getInt("Stock"));
+                p.setWarehouseName(getWarehouseNameForProduct(conn, p.getProductId()));
+                p.setPurchasePrice(getLatestPurchasePrice(conn, p.getProductId()));
 
                 list.add(p);
             }
@@ -50,6 +52,44 @@ public class ProductDAOImpl implements ProductDAO {
             e.printStackTrace();
         }
         return list;
+    }
+
+    private String getWarehouseNameForProduct(Connection conn, int productId) {
+        String sql = "SELECT TOP 1 w.WarehouseName " +
+                "FROM Inventory i " +
+                "JOIN Warehouses w ON i.WarehouseID = w.WarehouseID " +
+                "WHERE i.ProductID = ? " +
+                "ORDER BY i.QuantityOnHand DESC";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, productId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("WarehouseName");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private java.math.BigDecimal getLatestPurchasePrice(Connection conn, int productId) {
+        String sql = "SELECT TOP 1 pod.UnitCost " +
+                "FROM PurchaseOrderDetails pod " +
+                "JOIN PurchaseOrders po ON pod.POID = po.POID " +
+                "WHERE pod.ProductID = ? " +
+                "ORDER BY po.OrderDate DESC";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, productId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBigDecimal("UnitCost");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return new java.math.BigDecimal(0);
     }
 
     @Override
@@ -64,7 +104,7 @@ public class ProductDAOImpl implements ProductDAO {
                 "WHERE p.ProductID = ? AND p.IsActive = 1";
 
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -130,19 +170,27 @@ public class ProductDAOImpl implements ProductDAO {
         } catch (SQLException e) {
             e.printStackTrace();
             try {
-                if (conn != null) conn.rollback();
-            } catch (SQLException ex) { ex.printStackTrace(); }
+                if (conn != null)
+                    conn.rollback();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
             return false;
         } finally {
             try {
-                if (rs != null) rs.close();
-                if (psProduct != null) psProduct.close();
-                if (psInventory != null) psInventory.close();
+                if (rs != null)
+                    rs.close();
+                if (psProduct != null)
+                    psProduct.close();
+                if (psInventory != null)
+                    psInventory.close();
                 if (conn != null) {
                     conn.setAutoCommit(true);
                     conn.close();
                 }
-            } catch (SQLException e) { e.printStackTrace(); }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -150,7 +198,7 @@ public class ProductDAOImpl implements ProductDAO {
     public boolean update(ProductDTO p) {
         String sql = "UPDATE Products SET ProductName=?, CategoryID=?, SKU=?, UnitPrice=?, ReorderLevel=? WHERE ProductID=?";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, p.getProductName());
             ps.setInt(2, p.getCategoryId());
@@ -170,7 +218,7 @@ public class ProductDAOImpl implements ProductDAO {
     public boolean delete(int id) {
         String sql = "UPDATE Products SET IsActive = 0 WHERE ProductID = ?";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {

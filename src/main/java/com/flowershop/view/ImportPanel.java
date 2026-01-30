@@ -3,10 +3,13 @@ package com.flowershop.view;
 import com.flowershop.model.dto.ProductDTO;
 import com.flowershop.model.dto.PurchaseOrderDTO;
 import com.flowershop.model.dto.PurchaseOrderDetailDTO;
+import com.flowershop.model.dto.WarehouseDTO;
 import com.flowershop.service.ProductService;
 import com.flowershop.service.PurchaseService;
+import com.flowershop.service.WarehouseService;
 import com.flowershop.service.impl.ProductServiceImpl;
 import com.flowershop.service.impl.PurchaseServiceImpl;
+import com.flowershop.service.impl.WarehouseServiceImpl;
 import com.flowershop.view.observer.ShopEventManager;
 import com.flowershop.view.observer.ShopObserver;
 import javax.swing.*;
@@ -19,19 +22,23 @@ import java.util.List;
 public class ImportPanel extends JPanel implements ShopObserver {
 
     private JComboBox<ProductDTO> cboProduct;
+    private JComboBox<WarehouseDTO> cboWarehouse;
     private JTextField txtQuantity;
     private JTextField txtCost;
     private JButton btnImport;
 
     private final ProductService productService;
     private final PurchaseService purchaseService;
+    private final WarehouseService warehouseService;
 
     public ImportPanel() {
         this.productService = new ProductServiceImpl();
         this.purchaseService = new PurchaseServiceImpl();
+        this.warehouseService = new WarehouseServiceImpl();
 
         initComponents();
         loadProducts();
+        loadWarehouses();
 
         ShopEventManager.getInstance().subscribe(this);
     }
@@ -46,32 +53,48 @@ public class ImportPanel extends JPanel implements ShopObserver {
         JLabel lblTitle = new JLabel("NHẬP HÀNG VÀO KHO (PO)");
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
         lblTitle.setForeground(new Color(0, 102, 204));
-        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         add(lblTitle, gbc);
 
-        gbc.gridy++; gbc.gridwidth = 1; gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridy++;
+        gbc.gridwidth = 1;
+        gbc.anchor = GridBagConstraints.WEST;
         add(new JLabel("Chọn Sản Phẩm:"), gbc);
 
         cboProduct = new JComboBox<>();
         gbc.gridx = 1;
         add(cboProduct, gbc);
 
-        gbc.gridx = 0; gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridy++;
         add(new JLabel("Số Lượng Nhập:"), gbc);
 
         txtQuantity = new JTextField(15);
         gbc.gridx = 1;
         add(txtQuantity, gbc);
 
-        gbc.gridx = 0; gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridy++;
         add(new JLabel("Giá Nhập (VND):"), gbc);
 
         txtCost = new JTextField(15);
         gbc.gridx = 1;
         add(txtCost, gbc);
 
-        gbc.gridx = 0; gbc.gridy++; gbc.gridwidth = 2;
+        gbc.gridx = 0;
+        gbc.gridy++;
+        add(new JLabel("Kho nhập:"), gbc);
+
+        cboWarehouse = new JComboBox<>();
+        gbc.gridx = 1;
+        add(cboWarehouse, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridwidth = 2;
         gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.CENTER;
 
@@ -93,12 +116,21 @@ public class ImportPanel extends JPanel implements ShopObserver {
         }
     }
 
+    private void loadWarehouses() {
+        cboWarehouse.removeAllItems();
+        List<WarehouseDTO> list = warehouseService.getAllWarehouses();
+        for (WarehouseDTO w : list) {
+            cboWarehouse.addItem(w);
+        }
+    }
+
     private void processImport() {
         ProductDTO selectedProduct = (ProductDTO) cboProduct.getSelectedItem();
+        WarehouseDTO selectedWarehouse = (WarehouseDTO) cboWarehouse.getSelectedItem();
         String qtyStr = txtQuantity.getText().trim();
         String costStr = txtCost.getText().trim();
 
-        if (selectedProduct == null || qtyStr.isEmpty() || costStr.isEmpty()) {
+        if (selectedProduct == null || selectedWarehouse == null || qtyStr.isEmpty() || costStr.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng nhập đầy đủ thông tin!", "Lỗi", JOptionPane.ERROR_MESSAGE);
             return;
         }
@@ -111,9 +143,9 @@ public class ImportPanel extends JPanel implements ShopObserver {
 
             PurchaseOrderDTO order = new PurchaseOrderDTO();
             order.setSupplierId(1);
-            order.setWarehouseId(1);
+            order.setWarehouseId(selectedWarehouse.getWarehouseId());
             order.setTotalAmount(totalAmount);
-            order.setNotes("Nhập nhanh từ ImportPanel");
+            order.setNotes("Nhập nhanh từ ImportPanel - Kho: " + selectedWarehouse.getWarehouseName());
 
             List<PurchaseOrderDetailDTO> details = new ArrayList<>();
             PurchaseOrderDetailDTO detail = new PurchaseOrderDetailDTO();
@@ -136,7 +168,8 @@ public class ImportPanel extends JPanel implements ShopObserver {
             }
 
         } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Số lượng hoặc giá không hợp lệ!", "Lỗi nhập liệu", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Số lượng hoặc giá không hợp lệ!", "Lỗi nhập liệu",
+                    JOptionPane.ERROR_MESSAGE);
         } catch (Exception ex) {
             ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Lỗi hệ thống: " + ex.getMessage());

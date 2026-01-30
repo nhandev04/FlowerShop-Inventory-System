@@ -2,11 +2,8 @@ package com.flowershop.view;
 
 import com.flowershop.factory.ReportExporter;
 import com.flowershop.factory.ReportFactory;
-import com.flowershop.model.dto.CategoryDTO;
 import com.flowershop.model.dto.ProductDTO;
-import com.flowershop.service.CategoryService;
 import com.flowershop.service.ProductService;
-import com.flowershop.service.impl.CategoryServiceImpl;
 import com.flowershop.service.impl.ProductServiceImpl;
 import com.flowershop.view.observer.ShopEventManager;
 import com.flowershop.view.observer.ShopObserver;
@@ -23,19 +20,17 @@ public class ProductPanel extends JPanel implements ShopObserver {
 
     private JTable table;
     private DefaultTableModel tableModel;
-    private JComboBox<CategoryDTO> cboCategoryFilter;
+    private JComboBox<ProductDTO> cboProductFilter;
     private JTextField txtSearch;
 
     private final ProductService productService;
-    private final CategoryService categoryService;
     private final DecimalFormat formatter = new DecimalFormat("#,### VND");
 
     public ProductPanel() {
         this.productService = new ProductServiceImpl();
-        this.categoryService = new CategoryServiceImpl();
 
         initComponents();
-        loadCategories();
+        loadProducts();
         loadDataToTable();
 
         ShopEventManager.getInstance().subscribe(this);
@@ -58,17 +53,34 @@ public class ProductPanel extends JPanel implements ShopObserver {
 
         pnlHeader.add(Box.createHorizontalStrut(20));
 
-        pnlHeader.add(new JLabel("Danh mục:"));
-        cboCategoryFilter = new JComboBox<>();
-        cboCategoryFilter.setPreferredSize(new Dimension(150, 25));
-        pnlHeader.add(cboCategoryFilter);
+        pnlHeader.add(new JLabel("Sản phẩm:"));
+        cboProductFilter = new JComboBox<>();
+        cboProductFilter.setPreferredSize(new Dimension(200, 25));
+        pnlHeader.add(cboProductFilter);
 
-        cboCategoryFilter.addActionListener(e -> filterByCategory());
-        btnSearch.addActionListener(e -> loadDataToTable());
+        cboProductFilter.addActionListener(e -> filterByProduct());
+        btnSearch.addActionListener(e -> searchProducts());
+
+        txtSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                if (txtSearch.getText().trim().isEmpty()) {
+                    loadDataToTable();
+                }
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+            }
+        });
 
         add(pnlHeader, BorderLayout.NORTH);
 
-        String[] columns = {"ID", "Tên Sản Phẩm", "Danh Mục", "Giá Bán", "Tồn Kho", "Đơn Vị"};
+        String[] columns = { "ID", "Tên Sản Phẩm", "Danh Mục", "Giá Nhập", "Giá Bán", "Kho", "Tồn Kho", "Đơn Vị" };
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -83,7 +95,7 @@ public class ProductPanel extends JPanel implements ShopObserver {
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         table.getColumnModel().getColumn(0).setCellRenderer(centerRenderer);
-        table.getColumnModel().getColumn(4).setCellRenderer(centerRenderer);
+        table.getColumnModel().getColumn(6).setCellRenderer(centerRenderer);
 
         JScrollPane scrollPane = new JScrollPane(table);
         add(scrollPane, BorderLayout.CENTER);
@@ -99,10 +111,11 @@ public class ProductPanel extends JPanel implements ShopObserver {
         JButton btnExport = new JButton("Xuất Báo Cáo");
         try {
             btnExport.setIcon(new ImageIcon(getClass().getResource("/icons/excel.png")));
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
 
         btnExport.addActionListener(e -> {
-            String[] options = {"Excel", "PDF", "CSV"};
+            String[] options = { "Excel", "PDF", "CSV" };
             int choice = JOptionPane.showOptionDialog(this, "Chọn định dạng xuất file:", "Xuất Báo Cáo",
                     JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
 
@@ -126,22 +139,98 @@ public class ProductPanel extends JPanel implements ShopObserver {
                             JOptionPane.showMessageDialog(this, "Xuất file thành công!\n" + path);
                             try {
                                 Desktop.getDesktop().open(new File(path));
-                            } catch (Exception ex) {}
+                            } catch (Exception ex) {
+                            }
                         } else {
                             JOptionPane.showMessageDialog(this, "Chưa hỗ trợ định dạng này!");
                         }
                     } catch (Exception ex) {
                         ex.printStackTrace();
-                        JOptionPane.showMessageDialog(this, "Lỗi khi xuất file: " + ex.getMessage(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.showMessageDialog(this, "Lỗi khi xuất file: " + ex.getMessage(), "Lỗi",
+                                JOptionPane.ERROR_MESSAGE);
                     }
                 }
             }
         });
 
-        btnAdd.setBackground(new Color(0, 153, 76)); btnAdd.setForeground(Color.WHITE);
-        btnEdit.setBackground(new Color(0, 102, 204)); btnEdit.setForeground(Color.WHITE);
-        btnDelete.setBackground(new Color(204, 0, 0)); btnDelete.setForeground(Color.WHITE);
-        btnExport.setBackground(new Color(255, 102, 0)); btnExport.setForeground(Color.WHITE);
+        btnAdd.setBackground(new Color(0, 153, 76));
+        btnAdd.setForeground(Color.WHITE);
+        btnEdit.setBackground(new Color(0, 102, 204));
+        btnEdit.setForeground(Color.WHITE);
+        btnDelete.setBackground(new Color(204, 0, 0));
+        btnDelete.setForeground(Color.WHITE);
+        btnExport.setBackground(new Color(255, 102, 0));
+        btnExport.setForeground(Color.WHITE);
+
+        btnAdd.addActionListener(e -> {
+            ProductDialog dialog = new ProductDialog((Frame) SwingUtilities.getWindowAncestor(this));
+            dialog.setVisible(true);
+            if (dialog.isSaved()) {
+                ShopEventManager.getInstance().notify("PRODUCT_CHANGED");
+                JOptionPane.showMessageDialog(this, "Thêm sản phẩm thành công!", "Thông báo",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+
+        btnEdit.addActionListener(e -> {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm cần sửa!", "Cảnh báo",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            int productId = (int) tableModel.getValueAt(selectedRow, 0);
+            List<ProductDTO> products = productService.getAllProducts();
+            ProductDTO selectedProduct = null;
+
+            for (ProductDTO p : products) {
+                if (p.getProductId() == productId) {
+                    selectedProduct = p;
+                    break;
+                }
+            }
+
+            if (selectedProduct != null) {
+                ProductDialog dialog = new ProductDialog((Frame) SwingUtilities.getWindowAncestor(this),
+                        selectedProduct);
+                dialog.setVisible(true);
+                if (dialog.isSaved()) {
+                    ShopEventManager.getInstance().notify("PRODUCT_CHANGED");
+                    JOptionPane.showMessageDialog(this, "Cập nhật sản phẩm thành công!", "Thông báo",
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
+        });
+
+        btnDelete.addActionListener(e -> {
+            int selectedRow = table.getSelectedRow();
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm cần xóa!", "Cảnh báo",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            int productId = (int) tableModel.getValueAt(selectedRow, 0);
+            String productName = (String) tableModel.getValueAt(selectedRow, 1);
+
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Bạn có chắc chắn muốn xóa sản phẩm \"" + productName + "\"?",
+                    "Xác nhận xóa",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+
+            if (confirm == JOptionPane.YES_OPTION) {
+                boolean success = productService.deleteProduct(productId);
+                if (success) {
+                    ShopEventManager.getInstance().notify("PRODUCT_CHANGED");
+                    JOptionPane.showMessageDialog(this, "Xóa sản phẩm thành công!", "Thông báo",
+                            JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    JOptionPane.showMessageDialog(this, "Xóa sản phẩm thất bại!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
 
         pnlButtons.add(btnAdd);
         pnlButtons.add(btnEdit);
@@ -153,16 +242,16 @@ public class ProductPanel extends JPanel implements ShopObserver {
         btnRefresh.addActionListener(e -> loadDataToTable());
     }
 
-    private void loadCategories() {
-        cboCategoryFilter.removeAllItems();
-        CategoryDTO all = new CategoryDTO();
-        all.setCategoryId(0);
-        all.setCategoryName("--- Tất cả ---");
-        cboCategoryFilter.addItem(all);
+    private void loadProducts() {
+        cboProductFilter.removeAllItems();
+        ProductDTO all = new ProductDTO();
+        all.setProductId(0);
+        all.setProductName("--- Tất cả ---");
+        cboProductFilter.addItem(all);
 
-        List<CategoryDTO> list = categoryService.getAllCategories();
-        for (CategoryDTO c : list) {
-            cboCategoryFilter.addItem(c);
+        List<ProductDTO> list = productService.getAllProducts();
+        for (ProductDTO p : list) {
+            cboProductFilter.addItem(p);
         }
     }
 
@@ -171,11 +260,13 @@ public class ProductPanel extends JPanel implements ShopObserver {
         List<ProductDTO> list = productService.getAllProducts();
 
         for (ProductDTO p : list) {
-            Object[] row = new Object[]{
+            Object[] row = new Object[] {
                     p.getProductId(),
                     p.getProductName(),
                     p.getCategoryName(),
+                    formatter.format(p.getPurchasePrice() != null ? p.getPurchasePrice().doubleValue() : 0),
                     formatter.format(p.getPrice() != null ? p.getPrice().doubleValue() : 0),
+                    p.getWarehouseName() != null ? p.getWarehouseName() : "N/A",
                     p.getQuantityOnHand(),
                     "Cái/Bông"
             };
@@ -183,26 +274,46 @@ public class ProductPanel extends JPanel implements ShopObserver {
         }
     }
 
-    private void filterByCategory() {
-        CategoryDTO selected = (CategoryDTO) cboCategoryFilter.getSelectedItem();
-        if (selected != null && selected.getCategoryId() == 0) {
+    private void searchProducts() {
+        String keyword = txtSearch.getText().trim().toLowerCase();
+        tableModel.setRowCount(0);
+        List<ProductDTO> list = productService.getAllProducts();
+
+        for (ProductDTO p : list) {
+            if (keyword.isEmpty() || p.getProductName().toLowerCase().contains(keyword)) {
+                Object[] row = new Object[] {
+                        p.getProductId(),
+                        p.getProductName(),
+                        p.getCategoryName(),
+                        formatter.format(p.getPurchasePrice() != null ? p.getPurchasePrice().doubleValue() : 0),
+                        formatter.format(p.getPrice() != null ? p.getPrice().doubleValue() : 0),
+                        p.getWarehouseName() != null ? p.getWarehouseName() : "N/A",
+                        p.getQuantityOnHand(),
+                        "Cái/Bông"
+                };
+                tableModel.addRow(row);
+            }
+        }
+    }
+
+    private void filterByProduct() {
+        ProductDTO selected = (ProductDTO) cboProductFilter.getSelectedItem();
+        if (selected != null && selected.getProductId() == 0) {
             loadDataToTable();
         } else if (selected != null) {
             tableModel.setRowCount(0);
-            List<ProductDTO> list = productService.getAllProducts();
-            for (ProductDTO p : list) {
-                if(p.getCategoryId() == selected.getCategoryId()) {
-                    Object[] row = {
-                            p.getProductId(),
-                            p.getProductName(),
-                            p.getCategoryName(),
-                            formatter.format(p.getPrice() != null ? p.getPrice().doubleValue() : 0),
-                            p.getQuantityOnHand(),
-                            "Cái/Bông"
-                    };
-                    tableModel.addRow(row);
-                }
-            }
+            Object[] row = {
+                    selected.getProductId(),
+                    selected.getProductName(),
+                    selected.getCategoryName(),
+                    formatter.format(
+                            selected.getPurchasePrice() != null ? selected.getPurchasePrice().doubleValue() : 0),
+                    formatter.format(selected.getPrice() != null ? selected.getPrice().doubleValue() : 0),
+                    selected.getWarehouseName() != null ? selected.getWarehouseName() : "N/A",
+                    selected.getQuantityOnHand(),
+                    "Cái/Bông"
+            };
+            tableModel.addRow(row);
         }
     }
 

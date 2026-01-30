@@ -1,15 +1,20 @@
 package com.flowershop.view;
 
+import com.flowershop.model.dto.CustomerDTO;
 import com.flowershop.model.dto.ProductDTO;
 import com.flowershop.model.dto.SalesOrderDTO;
 import com.flowershop.model.dto.SalesOrderDetailDTO;
+import com.flowershop.service.CustomerService;
 import com.flowershop.service.ProductService;
 import com.flowershop.service.SalesService;
+import com.flowershop.service.impl.CustomerServiceImpl;
 import com.flowershop.service.impl.ProductServiceImpl;
 import com.flowershop.service.impl.SalesServiceImpl;
 import com.flowershop.view.observer.ShopEventManager;
 import com.flowershop.view.observer.ShopObserver;
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -20,17 +25,23 @@ public class SalesPanel extends JPanel implements ShopObserver {
 
     private JComboBox<ProductDTO> cboProduct;
     private JTextField txtQuantity;
-    private JTextField txtCustomer;
+    private JComboBox<CustomerDTO> cboCustomer;
+    private JLabel lblStock;
+    private JLabel lblUnitPrice;
+    private JLabel lblTotalPrice;
     private JButton btnSubmit;
 
     private final ProductService productService;
     private final SalesService salesService;
+    private final CustomerService customerService;
 
     public SalesPanel() {
         this.productService = new ProductServiceImpl();
         this.salesService = new SalesServiceImpl();
+        this.customerService = new CustomerServiceImpl();
         initComponents();
         loadProducts();
+        loadCustomers();
 
         ShopEventManager.getInstance().subscribe(this);
     }
@@ -50,37 +61,80 @@ public class SalesPanel extends JPanel implements ShopObserver {
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         formPanel.add(new JLabel("Chọn Sản Phẩm:"), gbc);
 
-        gbc.gridx = 1; gbc.weightx = 1.0;
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
         cboProduct = new JComboBox<>();
-        cboProduct.setRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                if (value instanceof ProductDTO) {
-                    ProductDTO p = (ProductDTO) value;
-                    setText(p.getProductName() + " | Tồn: " + p.getQuantityOnHand() + " | Giá: " + new DecimalFormat("#,###").format(p.getPrice()));
-                }
-                return this;
-            }
+        cboProduct.addActionListener(e -> {
+            updateProductInfo();
+            calculateTotal();
         });
         formPanel.add(cboProduct, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0;
+        formPanel.add(new JLabel("Tồn Kho:"), gbc);
+
+        gbc.gridx = 1;
+        lblStock = new JLabel("0");
+        lblStock.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        formPanel.add(lblStock, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        formPanel.add(new JLabel("Giá Bán:"), gbc);
+
+        gbc.gridx = 1;
+        lblUnitPrice = new JLabel("0 VND");
+        lblUnitPrice.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        formPanel.add(lblUnitPrice, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.weightx = 0;
         formPanel.add(new JLabel("Số Lượng Bán:"), gbc);
 
         gbc.gridx = 1;
         txtQuantity = new JTextField();
+        txtQuantity.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                calculateTotal();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                calculateTotal();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                calculateTotal();
+            }
+        });
         formPanel.add(txtQuantity, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2;
-        formPanel.add(new JLabel("Tên Khách Hàng:"), gbc);
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        formPanel.add(new JLabel("Nhóm Khách Hàng:"), gbc);
 
         gbc.gridx = 1;
-        txtCustomer = new JTextField("Khách vãng lai");
-        formPanel.add(txtCustomer, gbc);
+        cboCustomer = new JComboBox<>();
+        formPanel.add(cboCustomer, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        formPanel.add(new JLabel("Thành Tiền:"), gbc);
+
+        gbc.gridx = 1;
+        lblTotalPrice = new JLabel("0 VND");
+        lblTotalPrice.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblTotalPrice.setForeground(new Color(0, 153, 76));
+        formPanel.add(lblTotalPrice, gbc);
 
         add(formPanel, BorderLayout.CENTER);
 
@@ -102,15 +156,62 @@ public class SalesPanel extends JPanel implements ShopObserver {
         for (ProductDTO p : products) {
             cboProduct.addItem(p);
         }
+        updateProductInfo();
+    }
+
+    private void loadCustomers() {
+        cboCustomer.removeAllItems();
+        List<CustomerDTO> customers = customerService.getAllCustomers();
+        for (CustomerDTO c : customers) {
+            cboCustomer.addItem(c);
+        }
+    }
+
+    private void updateProductInfo() {
+        ProductDTO selectedProduct = (ProductDTO) cboProduct.getSelectedItem();
+        if (selectedProduct != null) {
+            lblStock.setText(String.valueOf(selectedProduct.getQuantityOnHand()));
+            lblUnitPrice.setText(new DecimalFormat("#,### VND").format(selectedProduct.getPrice()));
+        } else {
+            lblStock.setText("0");
+            lblUnitPrice.setText("0 VND");
+        }
+    }
+
+    private void calculateTotal() {
+        try {
+            ProductDTO selectedProduct = (ProductDTO) cboProduct.getSelectedItem();
+            String qtyStr = txtQuantity.getText().trim();
+
+            if (selectedProduct != null && !qtyStr.isEmpty()) {
+                int quantity = Integer.parseInt(qtyStr);
+                BigDecimal price = selectedProduct.getPrice();
+                BigDecimal total = price.multiply(BigDecimal.valueOf(quantity));
+
+                DecimalFormat df = new DecimalFormat("#,### VND");
+                lblTotalPrice.setText(df.format(total));
+            } else {
+                lblTotalPrice.setText("0 VND");
+            }
+        } catch (NumberFormatException e) {
+            lblTotalPrice.setText("0 VND");
+        }
     }
 
     private void processSales() {
         ProductDTO selectedProduct = (ProductDTO) cboProduct.getSelectedItem();
+        CustomerDTO selectedCustomer = (CustomerDTO) cboCustomer.getSelectedItem();
         String qtyStr = txtQuantity.getText().trim();
-        String customerName = txtCustomer.getText().trim();
 
         if (selectedProduct == null || qtyStr.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm và nhập số lượng!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm và nhập số lượng!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (selectedCustomer == null) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn nhóm khách hàng!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -118,7 +219,9 @@ public class SalesPanel extends JPanel implements ShopObserver {
             int quantity = Integer.parseInt(qtyStr);
 
             if (quantity > selectedProduct.getQuantityOnHand()) {
-                JOptionPane.showMessageDialog(this, "Số lượng tồn kho không đủ! (Còn: " + selectedProduct.getQuantityOnHand() + ")", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this,
+                        "Số lượng tồn kho không đủ! (Còn: " + selectedProduct.getQuantityOnHand() + ")", "Cảnh báo",
+                        JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -126,9 +229,9 @@ public class SalesPanel extends JPanel implements ShopObserver {
             BigDecimal totalAmount = price.multiply(BigDecimal.valueOf(quantity));
 
             SalesOrderDTO order = new SalesOrderDTO();
-            order.setCustomerId(4);
+            order.setCustomerId(selectedCustomer.getCustomerId());
             order.setTotalAmount(totalAmount);
-            order.setNotes("Khách mua: " + customerName);
+            order.setNotes("Khách hàng: " + selectedCustomer.getCustomerName());
 
             List<SalesOrderDetailDTO> details = new ArrayList<>();
             SalesOrderDetailDTO detail = new SalesOrderDetailDTO();
@@ -145,13 +248,14 @@ public class SalesPanel extends JPanel implements ShopObserver {
                         "Thanh toán thành công!\n" +
                                 "Sản phẩm: " + selectedProduct.getProductName() + "\n" +
                                 "Số lượng: " + quantity + "\n" +
-                                "Tổng tiền: " + new DecimalFormat("#,###").format(totalAmount) + " VND"
-                );
+                                "Khách hàng: " + selectedCustomer.getCustomerName() + "\n" +
+                                "Tổng tiền: " + new DecimalFormat("#,###").format(totalAmount) + " VND");
                 txtQuantity.setText("");
-                txtCustomer.setText("Khách vãng lai");
+                lblTotalPrice.setText("0 VND");
                 loadProducts();
             } else {
-                JOptionPane.showMessageDialog(this, "Thanh toán thất bại! Vui lòng kiểm tra lại.", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Thanh toán thất bại! Vui lòng kiểm tra lại.", "Lỗi",
+                        JOptionPane.ERROR_MESSAGE);
             }
 
         } catch (NumberFormatException ex) {

@@ -270,6 +270,16 @@ public class MainFrame extends JFrame {
         menu.setForeground(Color.WHITE);
         menu.setOpaque(false);
         menu.setBorder(BorderFactory.createEmptyBorder(0, 30, 0, 30));
+        menu.setHorizontalAlignment(SwingConstants.CENTER);
+
+        FontMetrics fm = menu.getFontMetrics(menu.getFont());
+        int textWidth = fm.stringWidth(menu.getText());
+        int totalWidth = textWidth + 60;
+
+        Dimension size = new Dimension(totalWidth, 30);
+        menu.setPreferredSize(size);
+        menu.setMinimumSize(size);
+        menu.setMaximumSize(size);
     }
 
     public static void openLogin() {

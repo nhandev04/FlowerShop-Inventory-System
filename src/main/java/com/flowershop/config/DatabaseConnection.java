@@ -8,7 +8,7 @@ public class DatabaseConnection {
 
     private static final String DB_URL = "jdbc:sqlserver://localhost:1433;databaseName=QuanLyKhoHang;encrypt=true;trustServerCertificate=true;";
     private static final String USER = "sa";
-    private static final String PASS = "databasebyhoa";
+    private static final String PASS = "123456789";
 
     private static DatabaseConnection instance;
 

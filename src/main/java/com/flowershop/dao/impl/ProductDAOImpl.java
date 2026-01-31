@@ -17,15 +17,16 @@ public class ProductDAOImpl implements ProductDAO {
     @Override
     public List<ProductDTO> getAll() {
         List<ProductDTO> list = new ArrayList<>();
-        String sql = "SELECT p.*, c.CategoryName, ISNULL(i.TotalStock, 0) AS Stock " +
+        // Query to show each product-warehouse combination separately
+        String sql = "SELECT p.*, c.CategoryName, " +
+                "i.WarehouseID, w.WarehouseName, " +
+                "ISNULL(i.QuantityOnHand, 0) AS Stock " +
                 "FROM Products p " +
                 "LEFT JOIN Categories c ON p.CategoryID = c.CategoryID " +
-                "LEFT JOIN (" +
-                "    SELECT ProductID, SUM(QuantityOnHand) as TotalStock " +
-                "    FROM Inventory " +
-                "    GROUP BY ProductID" +
-                ") i ON p.ProductID = i.ProductID " +
-                "WHERE p.IsActive = 1";
+                "LEFT JOIN Inventory i ON p.ProductID = i.ProductID " +
+                "LEFT JOIN Warehouses w ON i.WarehouseID = w.WarehouseID " +
+                "WHERE p.IsActive = 1 " +
+                "ORDER BY p.ProductID, w.WarehouseName";
 
         try (Connection conn = getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql);
@@ -42,8 +43,13 @@ public class ProductDAOImpl implements ProductDAO {
                 p.setIsActive(rs.getBoolean("IsActive"));
                 p.setCreatedAt(rs.getTimestamp("CreatedAt"));
                 p.setCategoryName(rs.getString("CategoryName"));
+
+                // Warehouse-specific data (directly from JOIN)
+                p.setWarehouseId(rs.getInt("WarehouseID"));
+                p.setWarehouseName(rs.getString("WarehouseName"));
                 p.setQuantityOnHand(rs.getInt("Stock"));
-                p.setWarehouseName(getWarehouseNameForProduct(conn, p.getProductId()));
+
+                // Get purchase price
                 p.setPurchasePrice(getLatestPurchasePrice(conn, p.getProductId()));
 
                 list.add(p);
@@ -52,25 +58,6 @@ public class ProductDAOImpl implements ProductDAO {
             e.printStackTrace();
         }
         return list;
-    }
-
-    private String getWarehouseNameForProduct(Connection conn, int productId) {
-        String sql = "SELECT TOP 1 w.WarehouseName " +
-                "FROM Inventory i " +
-                "JOIN Warehouses w ON i.WarehouseID = w.WarehouseID " +
-                "WHERE i.ProductID = ? " +
-                "ORDER BY i.QuantityOnHand DESC";
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, productId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("WarehouseName");
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 
     private java.math.BigDecimal getLatestPurchasePrice(Connection conn, int productId) {

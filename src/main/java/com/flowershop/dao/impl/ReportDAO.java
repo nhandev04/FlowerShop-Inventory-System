@@ -20,7 +20,7 @@ public class ReportDAO {
                 "GROUP BY MONTH(OrderDate)";
 
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, year);
             ResultSet rs = ps.executeQuery();
@@ -51,8 +51,8 @@ public class ReportDAO {
                 "GROUP BY CustomerID";
 
         try (Connection conn = DatabaseConnection.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
                 double total = rs.getDouble("TongChiTieu");
@@ -69,5 +69,65 @@ public class ReportDAO {
             e.printStackTrace();
         }
         return stats;
+    }
+
+    /**
+     * Enhanced customer segmentation with revenue data
+     * 
+     * @param period "month", "quarter", "year", or "all"
+     * @return Map of segment name to [count, revenue]
+     */
+    public Map<String, double[]> getCustomerSegmentationDetailed(String period) {
+        Map<String, double[]> stats = new HashMap<>();
+        stats.put("Khách VIP (≥10tr)", new double[] { 0, 0 }); // [count, revenue]
+        stats.put("Khách Thân Thiết (≥2tr)", new double[] { 0, 0 });
+        stats.put("Khách Vãng Lai (<2tr)", new double[] { 0, 0 });
+
+        String dateFilter = getDateFilter(period);
+
+        String sql = "SELECT CustomerID, SUM(TotalAmount) as TongChiTieu " +
+                "FROM SalesOrders " +
+                "WHERE (Status = 'Completed' OR Status = 'Delivered') " +
+                dateFilter +
+                "GROUP BY CustomerID";
+
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                double total = rs.getDouble("TongChiTieu");
+
+                String segment;
+                if (total >= 10000000) {
+                    segment = "Khách VIP (≥10tr)";
+                } else if (total >= 2000000) {
+                    segment = "Khách Thân Thiết (≥2tr)";
+                } else {
+                    segment = "Khách Vãng Lai (<2tr)";
+                }
+
+                double[] data = stats.get(segment);
+                data[0]++; // Increment count
+                data[1] += total; // Add revenue
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return stats;
+    }
+
+    private String getDateFilter(String period) {
+        switch (period.toLowerCase()) {
+            case "month":
+                return "AND MONTH(OrderDate) = MONTH(GETDATE()) AND YEAR(OrderDate) = YEAR(GETDATE()) ";
+            case "quarter":
+                return "AND DATEPART(QUARTER, OrderDate) = DATEPART(QUARTER, GETDATE()) AND YEAR(OrderDate) = YEAR(GETDATE()) ";
+            case "year":
+                return "AND YEAR(OrderDate) = YEAR(GETDATE()) ";
+            case "all":
+            default:
+                return "";
+        }
     }
 }

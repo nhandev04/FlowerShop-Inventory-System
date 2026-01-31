@@ -2,9 +2,15 @@ package com.flowershop.view;
 
 import com.flowershop.factory.ReportExporter;
 import com.flowershop.factory.ReportFactory;
+import com.flowershop.model.dto.CategoryDTO;
 import com.flowershop.model.dto.ProductDTO;
+import com.flowershop.model.dto.WarehouseDTO;
+import com.flowershop.service.CategoryService;
 import com.flowershop.service.ProductService;
+import com.flowershop.service.WarehouseService;
+import com.flowershop.service.impl.CategoryServiceImpl;
 import com.flowershop.service.impl.ProductServiceImpl;
+import com.flowershop.service.impl.WarehouseServiceImpl;
 import com.flowershop.view.observer.ShopEventManager;
 import com.flowershop.view.observer.ShopObserver;
 import javax.swing.*;
@@ -20,17 +26,22 @@ public class ProductPanel extends JPanel implements ShopObserver {
 
     private JTable table;
     private DefaultTableModel tableModel;
-    private JComboBox<ProductDTO> cboProductFilter;
+    private JComboBox<CategoryDTO> cboCategoryFilter;
+    private JComboBox<WarehouseDTO> cboWarehouseFilter;
     private JTextField txtSearch;
 
     private final ProductService productService;
+    private final CategoryService categoryService;
+    private final WarehouseService warehouseService;
     private final DecimalFormat formatter = new DecimalFormat("#,### VND");
 
     public ProductPanel() {
         this.productService = new ProductServiceImpl();
+        this.categoryService = new CategoryServiceImpl();
+        this.warehouseService = new WarehouseServiceImpl();
 
         initComponents();
-        loadProducts();
+        loadFilters();
         loadDataToTable();
 
         ShopEventManager.getInstance().subscribe(this);
@@ -44,7 +55,7 @@ public class ProductPanel extends JPanel implements ShopObserver {
         JPanel pnlHeader = new JPanel(new FlowLayout(FlowLayout.LEFT));
         pnlHeader.setBackground(Color.WHITE);
 
-        pnlHeader.add(new JLabel("Tìm kiếm:"));
+        pnlHeader.add(new JLabel("Tìm theo tên:"));
         txtSearch = new JTextField(15);
         pnlHeader.add(txtSearch);
 
@@ -53,13 +64,21 @@ public class ProductPanel extends JPanel implements ShopObserver {
 
         pnlHeader.add(Box.createHorizontalStrut(20));
 
-        pnlHeader.add(new JLabel("Sản phẩm:"));
-        cboProductFilter = new JComboBox<>();
-        cboProductFilter.setPreferredSize(new Dimension(200, 25));
-        pnlHeader.add(cboProductFilter);
+        pnlHeader.add(new JLabel("Danh mục:"));
+        cboCategoryFilter = new JComboBox<>();
+        cboCategoryFilter.setPreferredSize(new Dimension(180, 25));
+        pnlHeader.add(cboCategoryFilter);
 
-        cboProductFilter.addActionListener(e -> filterByProduct());
-        btnSearch.addActionListener(e -> searchProducts());
+        pnlHeader.add(Box.createHorizontalStrut(15));
+
+        pnlHeader.add(new JLabel("Kho:"));
+        cboWarehouseFilter = new JComboBox<>();
+        cboWarehouseFilter.setPreferredSize(new Dimension(150, 25));
+        pnlHeader.add(cboWarehouseFilter);
+
+        cboCategoryFilter.addActionListener(e -> applyFilters());
+        cboWarehouseFilter.addActionListener(e -> applyFilters());
+        btnSearch.addActionListener(e -> applyFilters());
 
         txtSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
@@ -69,7 +88,7 @@ public class ProductPanel extends JPanel implements ShopObserver {
             @Override
             public void removeUpdate(javax.swing.event.DocumentEvent e) {
                 if (txtSearch.getText().trim().isEmpty()) {
-                    loadDataToTable();
+                    applyFilters();
                 }
             }
 
@@ -242,16 +261,29 @@ public class ProductPanel extends JPanel implements ShopObserver {
         btnRefresh.addActionListener(e -> loadDataToTable());
     }
 
-    private void loadProducts() {
-        cboProductFilter.removeAllItems();
-        ProductDTO all = new ProductDTO();
-        all.setProductId(0);
-        all.setProductName("--- Tất cả ---");
-        cboProductFilter.addItem(all);
+    private void loadFilters() {
+        // Load categories
+        cboCategoryFilter.removeAllItems();
+        CategoryDTO allCat = new CategoryDTO();
+        allCat.setCategoryId(0);
+        allCat.setCategoryName("--- Tất cả danh mục ---");
+        cboCategoryFilter.addItem(allCat);
 
-        List<ProductDTO> list = productService.getAllProducts();
-        for (ProductDTO p : list) {
-            cboProductFilter.addItem(p);
+        List<CategoryDTO> categories = categoryService.getAllCategories();
+        for (CategoryDTO c : categories) {
+            cboCategoryFilter.addItem(c);
+        }
+
+        // Load warehouses
+        cboWarehouseFilter.removeAllItems();
+        WarehouseDTO allWh = new WarehouseDTO();
+        allWh.setWarehouseId(0);
+        allWh.setWarehouseName("--- Tất cả kho ---");
+        cboWarehouseFilter.addItem(allWh);
+
+        List<WarehouseDTO> warehouses = warehouseService.getAllWarehouses();
+        for (WarehouseDTO w : warehouses) {
+            cboWarehouseFilter.addItem(w);
         }
     }
 
@@ -274,14 +306,31 @@ public class ProductPanel extends JPanel implements ShopObserver {
         }
     }
 
-    private void searchProducts() {
-        String keyword = txtSearch.getText().trim().toLowerCase();
+    private void applyFilters() {
+        String searchKeyword = txtSearch.getText().trim().toLowerCase();
+        CategoryDTO selectedCategory = (CategoryDTO) cboCategoryFilter.getSelectedItem();
+        WarehouseDTO selectedWarehouse = (WarehouseDTO) cboWarehouseFilter.getSelectedItem();
+
         tableModel.setRowCount(0);
         List<ProductDTO> list = productService.getAllProducts();
 
         for (ProductDTO p : list) {
-            if (keyword.isEmpty() || p.getProductName().toLowerCase().contains(keyword)) {
-                Object[] row = new Object[] {
+            // Filter by search keyword (product name)
+            boolean nameMatch = searchKeyword.isEmpty() ||
+                    p.getProductName().toLowerCase().contains(searchKeyword);
+
+            // Filter by category
+            boolean categoryMatch = selectedCategory == null ||
+                    selectedCategory.getCategoryId() == 0 ||
+                    p.getCategoryId() == selectedCategory.getCategoryId();
+
+            // Filter by warehouse
+            boolean warehouseMatch = selectedWarehouse == null ||
+                    selectedWarehouse.getWarehouseId() == 0 ||
+                    p.getWarehouseId() == selectedWarehouse.getWarehouseId();
+
+            if (nameMatch && categoryMatch && warehouseMatch) {
+                Object[] row = {
                         p.getProductId(),
                         p.getProductName(),
                         p.getCategoryName(),
@@ -293,27 +342,6 @@ public class ProductPanel extends JPanel implements ShopObserver {
                 };
                 tableModel.addRow(row);
             }
-        }
-    }
-
-    private void filterByProduct() {
-        ProductDTO selected = (ProductDTO) cboProductFilter.getSelectedItem();
-        if (selected != null && selected.getProductId() == 0) {
-            loadDataToTable();
-        } else if (selected != null) {
-            tableModel.setRowCount(0);
-            Object[] row = {
-                    selected.getProductId(),
-                    selected.getProductName(),
-                    selected.getCategoryName(),
-                    formatter.format(
-                            selected.getPurchasePrice() != null ? selected.getPurchasePrice().doubleValue() : 0),
-                    formatter.format(selected.getPrice() != null ? selected.getPrice().doubleValue() : 0),
-                    selected.getWarehouseName() != null ? selected.getWarehouseName() : "N/A",
-                    selected.getQuantityOnHand(),
-                    "Cái/Bông"
-            };
-            tableModel.addRow(row);
         }
     }
 

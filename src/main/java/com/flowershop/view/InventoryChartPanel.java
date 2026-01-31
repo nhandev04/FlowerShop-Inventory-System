@@ -1,38 +1,64 @@
 package com.flowershop.view;
 
 import com.flowershop.model.dto.ProductDTO;
+import com.flowershop.model.dto.WarehouseDTO;
 import com.flowershop.service.ProductService;
+import com.flowershop.service.WarehouseService;
 import com.flowershop.service.impl.ProductServiceImpl;
+import com.flowershop.service.impl.WarehouseServiceImpl;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.text.DecimalFormat;
+import java.util.*;
 import java.util.List;
 
 public class InventoryChartPanel extends JPanel {
 
     private final ProductService productService;
+    private final WarehouseService warehouseService;
     private List<ProductDTO> productList;
     private ChartCanvas canvas;
     private JScrollPane scrollPane;
+    private JComboBox<String> cboWarehouse;
+    private Map<String, Integer> warehouseMap; // name -> id
 
     public InventoryChartPanel() {
         this.productService = new ProductServiceImpl();
-        this.productList = productService.getAllProducts();
+        this.warehouseService = new WarehouseServiceImpl();
+        this.warehouseMap = new HashMap<>();
 
         setLayout(new BorderLayout());
         setBackground(Color.WHITE);
         setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        JLabel lblTitle = new JLabel("THỐNG KÊ TỒN KHO (Kéo thanh trượt để xem thêm)");
+        // Title and Filter Panel
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBackground(Color.WHITE);
+        topPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+
+        JLabel lblTitle = new JLabel("THỐNG KÊ TỒN KHO");
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
         lblTitle.setForeground(new Color(0, 51, 102));
         lblTitle.setHorizontalAlignment(SwingConstants.CENTER);
-        add(lblTitle, BorderLayout.NORTH);
+        topPanel.add(lblTitle, BorderLayout.CENTER);
 
+        // Filter panel
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        filterPanel.setBackground(Color.WHITE);
+        filterPanel.add(new JLabel("Kho:"));
+
+        cboWarehouse = new JComboBox<>();
+        cboWarehouse.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cboWarehouse.addActionListener(e -> updateChart());
+        filterPanel.add(cboWarehouse);
+
+        topPanel.add(filterPanel, BorderLayout.EAST);
+        add(topPanel, BorderLayout.NORTH);
+
+        // Create canvas FIRST before calling updateChart
         canvas = new ChartCanvas();
         scrollPane = new JScrollPane(canvas);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
@@ -43,15 +69,82 @@ public class InventoryChartPanel extends JPanel {
 
         JButton btnRefresh = new JButton("Làm mới biểu đồ");
         btnRefresh.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        btnRefresh.addActionListener(e -> {
-            this.productList = productService.getAllProducts();
-            canvas.revalidate();
-            canvas.repaint();
-        });
+        btnRefresh.addActionListener(e -> updateChart());
+
         JPanel pnlBottom = new JPanel();
         pnlBottom.setBackground(Color.WHITE);
         pnlBottom.add(btnRefresh);
         add(pnlBottom, BorderLayout.SOUTH);
+
+        // Load warehouses and update chart AFTER canvas is created
+        loadWarehouses();
+        updateChart();
+    }
+
+    private void loadWarehouses() {
+        cboWarehouse.removeAllItems();
+        warehouseMap.clear();
+
+        // Add "All" option
+        cboWarehouse.addItem("Tổng hợp");
+        warehouseMap.put("Tổng hợp", -1);
+
+        // Add individual warehouses
+        List<WarehouseDTO> warehouses = warehouseService.getAllWarehouses();
+        for (WarehouseDTO w : warehouses) {
+            cboWarehouse.addItem(w.getWarehouseName());
+            warehouseMap.put(w.getWarehouseName(), w.getWarehouseId());
+        }
+    }
+
+    private void updateChart() {
+        String selectedWarehouse = (String) cboWarehouse.getSelectedItem();
+        if (selectedWarehouse == null)
+            return;
+
+        List<ProductDTO> allProducts = productService.getAllProducts();
+        Integer warehouseId = warehouseMap.get(selectedWarehouse);
+
+        if (warehouseId == null) {
+            productList = new ArrayList<>();
+            return;
+        }
+
+        if (warehouseId == -1) {
+            // Aggregate by product
+            Map<Integer, ProductDTO> aggregated = new HashMap<>();
+
+            for (ProductDTO p : allProducts) {
+                if (aggregated.containsKey(p.getProductId())) {
+                    // Add quantity to existing
+                    ProductDTO existing = aggregated.get(p.getProductId());
+                    existing.setQuantityOnHand(existing.getQuantityOnHand() + p.getQuantityOnHand());
+                } else {
+                    // Create new entry
+                    ProductDTO newProduct = new ProductDTO();
+                    newProduct.setProductId(p.getProductId());
+                    newProduct.setProductName(p.getProductName());
+                    newProduct.setSku(p.getSku());
+                    newProduct.setPrice(p.getPrice());
+                    newProduct.setQuantityOnHand(p.getQuantityOnHand());
+                    newProduct.setWarehouseName("Tất cả kho");
+                    aggregated.put(p.getProductId(), newProduct);
+                }
+            }
+
+            productList = new ArrayList<>(aggregated.values());
+        } else {
+            // Filter by warehouse
+            productList = new ArrayList<>();
+            for (ProductDTO p : allProducts) {
+                if (p.getWarehouseId() == warehouseId) {
+                    productList.add(p);
+                }
+            }
+        }
+
+        canvas.revalidate();
+        canvas.repaint();
     }
 
     private class ChartCanvas extends JPanel {
@@ -64,17 +157,17 @@ public class InventoryChartPanel extends JPanel {
         public ChartCanvas() {
             setBackground(Color.WHITE);
 
-            addMouseMotionListener(new MouseAdapter() {
+            // Add mouse click listener to show product details
+            addMouseListener(new java.awt.event.MouseAdapter() {
                 @Override
-                public void mouseMoved(MouseEvent e) {
-                    updateTooltip(e.getX(), e.getY());
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    showProductInfo(e.getX(), e.getY());
                 }
             });
         }
 
-        private void updateTooltip(int mouseX, int mouseY) {
+        private void showProductInfo(int mouseX, int mouseY) {
             if (productList == null || productList.isEmpty()) {
-                setToolTipText(null);
                 return;
             }
 
@@ -96,21 +189,31 @@ public class InventoryChartPanel extends JPanel {
                 int x = PADDING_LEFT + i * (BAR_WIDTH + GAP) + 10;
                 int y = height - PADDING_BOTTOM - barHeight;
 
-                if (mouseX >= x && mouseX <= x + BAR_WIDTH &&
-                        mouseY >= y && mouseY <= height - PADDING_BOTTOM) {
+                // Check if clicking on bar OR product name label
+                int labelY = height - PADDING_BOTTOM + 5;
+                int labelHeight = 25;
 
+                boolean clickedOnBar = mouseX >= x && mouseX <= x + BAR_WIDTH &&
+                        mouseY >= y && mouseY <= height - PADDING_BOTTOM;
+                boolean clickedOnLabel = mouseX >= x && mouseX <= x + BAR_WIDTH &&
+                        mouseY >= labelY && mouseY <= labelY + labelHeight;
+
+                if (clickedOnBar || clickedOnLabel) {
                     DecimalFormat df = new DecimalFormat("#,###");
-                    String tooltip = "<html>" +
-                            "<b>Sản phẩm:</b> " + p.getProductName() + "<br>" +
-                            "<b>Mã SKU:</b> " + p.getSku() + "<br>" +
-                            "<b>Tồn kho:</b> " + qty + "<br>" +
-                            "<b>Giá bán:</b> " + df.format(p.getPrice()) + " VND" +
-                            "</html>";
-                    setToolTipText(tooltip);
+                    String message = "Sản phẩm: " + p.getProductName() + "\n" +
+                            "Mã SKU: " + p.getSku() + "\n" +
+                            "Kho: " + (p.getWarehouseName() != null ? p.getWarehouseName() : "N/A") + "\n" +
+                            "Tồn kho: " + qty + "\n" +
+                            "Giá bán: " + df.format(p.getPrice()) + " VND";
+
+                    JOptionPane.showMessageDialog(
+                            ChartCanvas.this,
+                            message,
+                            "Thông tin sản phẩm",
+                            JOptionPane.INFORMATION_MESSAGE);
                     return;
                 }
             }
-            setToolTipText(null);
         }
 
         @Override

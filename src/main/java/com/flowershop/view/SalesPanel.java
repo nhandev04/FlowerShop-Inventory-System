@@ -4,12 +4,15 @@ import com.flowershop.model.dto.CustomerDTO;
 import com.flowershop.model.dto.ProductDTO;
 import com.flowershop.model.dto.SalesOrderDTO;
 import com.flowershop.model.dto.SalesOrderDetailDTO;
+import com.flowershop.model.dto.WarehouseDTO;
 import com.flowershop.service.CustomerService;
 import com.flowershop.service.ProductService;
 import com.flowershop.service.SalesService;
+import com.flowershop.service.WarehouseService;
 import com.flowershop.service.impl.CustomerServiceImpl;
 import com.flowershop.service.impl.ProductServiceImpl;
 import com.flowershop.service.impl.SalesServiceImpl;
+import com.flowershop.service.impl.WarehouseServiceImpl;
 import com.flowershop.view.observer.ShopEventManager;
 import com.flowershop.view.observer.ShopObserver;
 import javax.swing.*;
@@ -23,6 +26,7 @@ import java.util.List;
 
 public class SalesPanel extends JPanel implements ShopObserver {
 
+    private JComboBox<WarehouseDTO> cboWarehouse;
     private JComboBox<ProductDTO> cboProduct;
     private JTextField txtQuantity;
     private JComboBox<CustomerDTO> cboCustomer;
@@ -34,13 +38,19 @@ public class SalesPanel extends JPanel implements ShopObserver {
     private final ProductService productService;
     private final SalesService salesService;
     private final CustomerService customerService;
+    private final WarehouseService warehouseService;
+
+    private List<ProductDTO> allProducts = new ArrayList<>();
 
     public SalesPanel() {
         this.productService = new ProductServiceImpl();
         this.salesService = new SalesServiceImpl();
         this.customerService = new CustomerServiceImpl();
+        this.warehouseService = new WarehouseServiceImpl();
+
         initComponents();
-        loadProducts();
+        loadWarehouses();
+        loadAllProducts();
         loadCustomers();
 
         ShopEventManager.getInstance().subscribe(this);
@@ -61,8 +71,23 @@ public class SalesPanel extends JPanel implements ShopObserver {
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
+        // Warehouse selector
         gbc.gridx = 0;
         gbc.gridy = 0;
+        JLabel lblWarehouse = new JLabel("Kho Xuất:");
+        lblWarehouse.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        formPanel.add(lblWarehouse, gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        cboWarehouse = new JComboBox<>();
+        cboWarehouse.addActionListener(e -> filterProductsByWarehouse());
+        formPanel.add(cboWarehouse, gbc);
+
+        // Product selector
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0;
         formPanel.add(new JLabel("Chọn Sản Phẩm:"), gbc);
 
         gbc.gridx = 1;
@@ -75,7 +100,7 @@ public class SalesPanel extends JPanel implements ShopObserver {
         formPanel.add(cboProduct, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy = 2;
         gbc.weightx = 0;
         formPanel.add(new JLabel("Tồn Kho:"), gbc);
 
@@ -85,7 +110,7 @@ public class SalesPanel extends JPanel implements ShopObserver {
         formPanel.add(lblStock, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 2;
+        gbc.gridy = 3;
         formPanel.add(new JLabel("Giá Bán:"), gbc);
 
         gbc.gridx = 1;
@@ -94,7 +119,7 @@ public class SalesPanel extends JPanel implements ShopObserver {
         formPanel.add(lblUnitPrice, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         gbc.weightx = 0;
         formPanel.add(new JLabel("Số Lượng Bán:"), gbc);
 
@@ -119,7 +144,7 @@ public class SalesPanel extends JPanel implements ShopObserver {
         formPanel.add(txtQuantity, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         formPanel.add(new JLabel("Nhóm Khách Hàng:"), gbc);
 
         gbc.gridx = 1;
@@ -127,7 +152,7 @@ public class SalesPanel extends JPanel implements ShopObserver {
         formPanel.add(cboCustomer, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 6;
         formPanel.add(new JLabel("Thành Tiền:"), gbc);
 
         gbc.gridx = 1;
@@ -150,12 +175,35 @@ public class SalesPanel extends JPanel implements ShopObserver {
         add(btnPanel, BorderLayout.SOUTH);
     }
 
-    private void loadProducts() {
-        cboProduct.removeAllItems();
-        List<ProductDTO> products = productService.getAllProducts();
-        for (ProductDTO p : products) {
-            cboProduct.addItem(p);
+    private void loadWarehouses() {
+        cboWarehouse.removeAllItems();
+        List<WarehouseDTO> warehouses = warehouseService.getAllWarehouses();
+        for (WarehouseDTO w : warehouses) {
+            cboWarehouse.addItem(w);
         }
+    }
+
+    private void loadAllProducts() {
+        allProducts = productService.getAllProducts();
+        filterProductsByWarehouse();
+    }
+
+    private void filterProductsByWarehouse() {
+        cboProduct.removeAllItems();
+
+        WarehouseDTO selectedWarehouse = (WarehouseDTO) cboWarehouse.getSelectedItem();
+        if (selectedWarehouse == null) {
+            updateProductInfo();
+            return;
+        }
+
+        // Filter products by selected warehouse
+        for (ProductDTO p : allProducts) {
+            if (p.getWarehouseId() == selectedWarehouse.getWarehouseId()) {
+                cboProduct.addItem(p);
+            }
+        }
+
         updateProductInfo();
     }
 
@@ -199,9 +247,16 @@ public class SalesPanel extends JPanel implements ShopObserver {
     }
 
     private void processSales() {
+        WarehouseDTO selectedWarehouse = (WarehouseDTO) cboWarehouse.getSelectedItem();
         ProductDTO selectedProduct = (ProductDTO) cboProduct.getSelectedItem();
         CustomerDTO selectedCustomer = (CustomerDTO) cboCustomer.getSelectedItem();
         String qtyStr = txtQuantity.getText().trim();
+
+        if (selectedWarehouse == null) {
+            JOptionPane.showMessageDialog(this, "Vui lòng chọn kho xuất hàng!", "Cảnh báo",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
         if (selectedProduct == null || qtyStr.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Vui lòng chọn sản phẩm và nhập số lượng!", "Cảnh báo",
@@ -220,7 +275,9 @@ public class SalesPanel extends JPanel implements ShopObserver {
 
             if (quantity > selectedProduct.getQuantityOnHand()) {
                 JOptionPane.showMessageDialog(this,
-                        "Số lượng tồn kho không đủ! (Còn: " + selectedProduct.getQuantityOnHand() + ")", "Cảnh báo",
+                        "Số lượng tồn kho không đủ! (Còn: " + selectedProduct.getQuantityOnHand() + " tại " +
+                                selectedWarehouse.getWarehouseName() + ")",
+                        "Cảnh báo",
                         JOptionPane.WARNING_MESSAGE);
                 return;
             }
@@ -230,8 +287,10 @@ public class SalesPanel extends JPanel implements ShopObserver {
 
             SalesOrderDTO order = new SalesOrderDTO();
             order.setCustomerId(selectedCustomer.getCustomerId());
+            order.setWarehouseId(selectedWarehouse.getWarehouseId()); // Set warehouse ID
             order.setTotalAmount(totalAmount);
-            order.setNotes("Khách hàng: " + selectedCustomer.getCustomerName());
+            order.setNotes("Khách hàng: " + selectedCustomer.getCustomerName() +
+                    " | Kho: " + selectedWarehouse.getWarehouseName());
 
             List<SalesOrderDetailDTO> details = new ArrayList<>();
             SalesOrderDetailDTO detail = new SalesOrderDetailDTO();
@@ -248,11 +307,12 @@ public class SalesPanel extends JPanel implements ShopObserver {
                         "Thanh toán thành công!\n" +
                                 "Sản phẩm: " + selectedProduct.getProductName() + "\n" +
                                 "Số lượng: " + quantity + "\n" +
+                                "Kho xuất: " + selectedWarehouse.getWarehouseName() + "\n" +
                                 "Khách hàng: " + selectedCustomer.getCustomerName() + "\n" +
                                 "Tổng tiền: " + new DecimalFormat("#,###").format(totalAmount) + " VND");
                 txtQuantity.setText("");
                 lblTotalPrice.setText("0 VND");
-                loadProducts();
+                loadAllProducts(); // Reload to refresh stock
             } else {
                 JOptionPane.showMessageDialog(this, "Thanh toán thất bại! Vui lòng kiểm tra lại.", "Lỗi",
                         JOptionPane.ERROR_MESSAGE);
@@ -269,7 +329,9 @@ public class SalesPanel extends JPanel implements ShopObserver {
     @Override
     public void updateData(String eventType) {
         if ("PRODUCT_CHANGED".equals(eventType)) {
-            loadProducts();
+            loadAllProducts();
+        } else if ("CUSTOMER_CHANGED".equals(eventType)) {
+            loadCustomers();
         }
     }
 }

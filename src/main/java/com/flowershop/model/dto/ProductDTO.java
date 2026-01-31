@@ -14,6 +14,7 @@ public class ProductDTO {
     private boolean isActive;
     private Timestamp createdAt;
     private int quantityOnHand;
+    private int warehouseId;
     private String warehouseName;
     private BigDecimal purchasePrice;
 
@@ -98,6 +99,14 @@ public class ProductDTO {
 
     public void setQuantityOnHand(int quantityOnHand) {
         this.quantityOnHand = quantityOnHand;
+    }
+
+    public int getWarehouseId() {
+        return warehouseId;
+    }
+
+    public void setWarehouseId(int warehouseId) {
+        this.warehouseId = warehouseId;
     }
 
     public String getWarehouseName() {

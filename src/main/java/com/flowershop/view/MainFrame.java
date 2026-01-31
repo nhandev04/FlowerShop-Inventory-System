@@ -61,6 +61,11 @@ public class MainFrame extends JFrame {
         JMenu menuManage = new JMenu("Quản lý");
         styleMenu(menuManage);
         if (userRole.equals("ADMIN") || userRole.equals("STAFF")) {
+            JMenuItem itemCustomer = new JMenuItem("Khách Hàng");
+            itemCustomer.addActionListener(e -> {
+                showPanel(new CustomerPanel(), "Quản lý Khách Hàng", menuManage);
+            });
+
             JMenuItem itemProduct = new JMenuItem("Sản phẩm & Kho");
             itemProduct.addActionListener(e -> {
                 showPanel(new ProductPanel(), "Quản lý Sản phẩm & Kho", menuManage);
@@ -81,6 +86,7 @@ public class MainFrame extends JFrame {
                 showPanel(new com.flowershop.view.WarehouseTransferPanel(), "Điều Chuyển Kho", menuManage);
             });
 
+            menuManage.add(itemCustomer);
             menuManage.add(itemProduct);
             menuManage.add(itemImport);
             menuManage.add(itemStockHistory);
@@ -227,18 +233,21 @@ public class MainFrame extends JFrame {
     private void showPanel(JPanel panel, String pageTitle, JMenu activeMenu) {
         currentPageLabel.setText(pageTitle);
 
+        // Reset previous active menu to default styling
         if (lastActiveMenu != null) {
-            lastActiveMenu.setForeground(UIManager.getColor("Menu.foreground"));
             lastActiveMenu.setOpaque(false);
-            lastActiveMenu.setFont(lastActiveMenu.getFont().deriveFont(Font.PLAIN));
-            lastActiveMenu.setBorder(null);
+            lastActiveMenu.setBackground(null);
+            lastActiveMenu.setForeground(Color.WHITE);
+            lastActiveMenu.setFont(new Font("Segoe UI", Font.BOLD, 14)); // Reset to original
+            lastActiveMenu.setBorder(BorderFactory.createEmptyBorder(0, 30, 0, 30));
         }
 
+        // Apply active styling to new menu
         if (activeMenu != null) {
             activeMenu.setOpaque(true);
             activeMenu.setBackground(new Color(41, 166, 185));
             activeMenu.setForeground(Color.WHITE);
-            activeMenu.setFont(activeMenu.getFont().deriveFont(Font.BOLD));
+            activeMenu.setFont(new Font("Segoe UI", Font.BOLD, 14));
             activeMenu.setBorder(BorderFactory.createCompoundBorder(
                     BorderFactory.createMatteBorder(0, 0, 3, 0, new Color(52, 152, 219)),
                     BorderFactory.createEmptyBorder(5, 10, 5, 10)));
